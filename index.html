@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Math Wheel: Angles and Angle Pairs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Lobster&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            overflow: hidden; /* Prevents scrollbars during animations */
+        }
+        .font-lobster {
+            font-family: 'Lobster', cursive;
+        }
+        #wheel-container {
+            position: relative;
+            width: 600px; 
+            height: 600px;
+        }
+        #pointer {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 25px solid transparent;
+            border-right: 25px solid transparent;
+            border-top: 40px solid #f1c40f;
+            z-index: 10;
+        }
+        #modal {
+            transition: opacity 0.3s ease;
+        }
+        .modal-content {
+            transform: translateY(-20px);
+            transition: transform 0.3s ease;
+        }
+        #modal.opacity-100 .modal-content {
+            transform: translateY(0);
+        }
+        
+        @media (max-width: 640px) {
+            #wheel-container {
+                width: 350px; 
+                height: 350px;
+            }
+            #pointer {
+                border-left-width: 15px;
+                border-right-width: 15px;
+                border-top-width: 25px;
+                top: -5px;
+            }
+            #modal-inner-content {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 flex flex-col items-center justify-center min-h-screen p-4 overflow-y-auto">
+
+    <div class="text-center mb-6">
+        <h1 class="font-lobster text-4xl md:text-6xl text-blue-600 dark:text-blue-400">Math Wheel</h1>
+        <p class="text-lg md:text-2xl mt-1">Angles and Angle Pairs</p>
+    </div>
+
+    <div id="game-container" class="flex flex-col items-center space-y-8">
+        <div id="wheel-container" class="flex items-center justify-center">
+            <div id="pointer"></div>
+            <canvas id="wheelCanvas" width="600" height="600"></canvas>
+        </div>
+        <button id="spinBtn" class="bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white font-bold text-2xl py-3 px-10 rounded-full shadow-lg transform transition hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100">
+            SPIN!
+        </button>
+    </div>
+    
+    <div id="completion-message" class="hidden text-center p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl">
+         <h2 class="font-lobster text-4xl text-green-500">Congratulations!</h2>
+         <p class="text-xl mt-2">You've learned all about Angles and Angle Pairs!</p>
+    </div>
+
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
+        <div class="modal-content bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-3xl w-full p-6 md:p-8 text-left relative">
+            <h2 id="modalTitle" class="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-4"></h2>
+            <div id="modal-inner-content" class="flex items-center gap-6">
+                <div id="modalImage" class="w-1/3 flex items-center justify-center"></div>
+                <div id="modalContent" class="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 w-2/3"></div>
+            </div>
+            <button id="closeModalBtn" class="mt-6 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-transform transform hover:scale-105">
+                Got it!
+            </button>
+        </div>
+    </div>
+    
+    <div class="w-full max-w-4xl mx-auto mt-12">
+        <details class="bg-white dark:bg-gray-800 shadow-lg rounded-lg">
+            <summary class="font-bold text-xl p-4 cursor-pointer">Project Instructions</summary>
+            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                <h3 class="font-bold text-lg">Objective:</h3>
+                <p>To understand and visualize the concepts of Angles and Angle Pairs through a collaborative project.</p>
+            </div>
+        </details>
+    </div>
+
+
+    <script>
+        const canvas = document.getElementById('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+        const spinBtn = document.getElementById('spinBtn');
+        const modal = document.getElementById('modal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalContent = document.getElementById('modalContent');
+        const modalImage = document.getElementById('modalImage');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const gameContainer = document.getElementById('game-container');
+        const completionMessage = document.getElementById('completion-message');
+
+        let segments = [
+            { color: '#3498db', label: 'Acute Angle', content: 'An angle that is less than 90°. <br><br><b>Example:</b> A 30° angle. <br><br><b>Real-world:</b> The angle at the tip of a slice of pizza.', image: `<svg viewBox="0 0 100 100"><g stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"><path d="M10 90 L 90 90" /><path d="M10 90 L 70 20" /></g><path d="M30 90 A 20 20 0 0 1 42 78" stroke="red" stroke-width="2.5" fill="none"/></svg>` },
+            { color: '#e74c3c', label: 'Obtuse Angle', content: 'An angle that is greater than 90° but less than 180°. <br><br><b>Example:</b> A 120° angle. <br><br><b>Real-world:</b> The angle of a reclining chair.', image: `<svg viewBox="0 0 100 100"><g stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"><path d="M95 90 L 5 90" /><path d="M5 90 L 30 20" /></g><path d="M25 90 A 20 20 0 0 1 29 70" stroke="red" stroke-width="2.5" fill="none"/></svg>` },
+            { color: '#2ecc71', label: 'Right Angle', content: 'An angle that is exactly 90°. <br><br><b>Example:</b> A 90° angle, often marked with a square. <br><br><b>Real-world:</b> The corner of a book or a room.', image: `<svg viewBox="0 0 100 100"><g stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"><path d="M10 90 L 90 90 L 90 10" /></g><path d="M70 90 L 70 70 L 90 70" stroke="red" stroke-width="2.5" fill="none"/></svg>` },
+            { color: '#f1c40f', label: 'Straight Angle', content: 'An angle that is exactly 180°. <br><br><b>Example:</b> A straight line. <br><br><b>Real-world:</b> An open book lying flat on a table.', image: `<svg viewBox="0 0 100 100"><g stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"><path d="M5 50 L 95 50" /><circle cx="50" cy="50" r="3" fill="currentColor"/></g><path d="M85 50 A 35 35 0 1 1 15 50" stroke="red" stroke-width="2.5" fill="none"/></svg>` },
+            { color: '#9b59b6', label: 'Comple-\nmentary', content: 'Two angles whose measures add up to 90°. <br><br><b>Example:</b> 40° and 50° are complementary angles.', image: `<svg viewBox="0 0 100 100"><g stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"><path d="M20 90 L 90 90 L 90 20" /><path d="M90 90 L 50 50" /></g><path d="M75 90 A 15 15 0 0 1 65.5 79.5" stroke="red" stroke-width="2.5" fill="none"/><path d="M70 65 A 15 15 0 0 1 90 75" stroke="blue" stroke-width="2.5" fill="none"/></svg>` },
+            { color: '#e67e22', label: 'Supple-\nmentary', content: 'Two angles whose measures add up to 180°. <br><br><b>Example:</b> 110° and 70° are supplementary angles.', image: `<svg viewBox="0 0 100 100"><g stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"><path d="M5 90 L 95 90" /><path d="M50 90 L 70 40" /></g><path d="M65 90 A 15 15 0 0 1 59 78" stroke="blue" stroke-width="2.5" fill="none"/><path d="M40 90 A 30 30 0 0 0 63 70" stroke="red" stroke-width="2.5" fill="none"/></svg>` },
+            { color: '#1abc9c', label: 'Adjacent\nAngles', content: 'Two angles that share a common vertex and a common side, but do not overlap. <br><br><b>Example:</b> Angles that are next to each other.', image: `<svg viewBox="0 0 100 100"><g stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"><path d="M50 90 L 10 20" /><path d="M50 90 L 90 20" /><path d="M50 90 L 50 10" /></g><path d="M42 70 A 20 20 0 0 1 30 55" stroke="red" stroke-width="2.5" fill="none"/><path d="M58 70 A 20 20 0 0 0 70 55" stroke="blue" stroke-width="2.5" fill="none"/></svg>` },
+            { color: '#34495e', label: 'Vertical\nAngles', content: 'The angles opposite each other when two lines cross. They are always equal. <br><br><b>Example:</b> In an "X" shape, the top and bottom angles are vertical and equal.', image: `<svg viewBox="0 0 100 100"><g stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"><path d="M10 10 L 90 90" /><path d="M10 90 L 90 10" /></g><path d="M65 35 A 20 20 0 0 0 35 35" stroke="red" stroke-width="2.5" fill="none"/><path d="M35 65 A 20 20 0 0 0 65 65" stroke="red" stroke-width="2.5" fill="none"/></svg>` },
+            { color: '#c0392b', label: 'Corres-\nponding', content: 'Angles in the same relative position at each intersection where a straight line crosses two others. If the two lines are parallel, then the corresponding angles are equal.', image: `<svg viewBox="0 0 100 100"><g stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"><path d="M10 30 L 90 30" /><path d="M10 70 L 90 70" /><path d="M20 10 L 80 90" /></g><path d="M43 30 A 10 10 0 0 1 35 20" stroke="blue" stroke-width="2.5" fill="none"/><path d="M70 70 A 10 10 0 0 1 62 60" stroke="blue" stroke-width="2.5" fill="none"/></svg>` },
+            { color: '#2980b9', label: 'Alternate\nInterior', content: 'A pair of angles on opposite sides of the transversal and between the parallel lines. They are equal.', image: `<svg viewBox="0 0 100 100"><g stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"><path d="M10 30 L 90 30" /><path d="M10 70 L 90 70" /><path d="M20 10 L 80 90" /></g><path d="M57 30 A 10 10 0 0 0 49 40" stroke="orange" stroke-width="2.5" fill="none"/><path d="M49 70 A 10 10 0 0 1 57 60" stroke="orange" stroke-width="2.5" fill="none"/></svg>` },
+            { color: '#27ae60', label: 'Alternate\nExterior', content: 'A pair of angles on opposite sides of the transversal and outside the parallel lines. They are equal.', image: `<svg viewBox="0 0 100 100"><g stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"><path d="M10 30 L 90 30" /><path d="M10 70 L 90 70" /><path d="M20 10 L 80 90" /></g><path d="M25 30 A 10 10 0 0 0 33 20" stroke="purple" stroke-width="2.5" fill="none"/><path d="M75 70 A 10 10 0 0 1 67 80" stroke="purple" stroke-width="2.5" fill="none"/></svg>` },
+            { color: '#d35400', label: 'Consecutive\nInterior', content: 'A pair of angles on the same side of the transversal and between the parallel lines. They are supplementary (add up to 180°).', image: `<svg viewBox="0 0 100 100"><g stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"><path d="M10 30 L 90 30" /><path d="M10 70 L 90 70" /><path d="M20 10 L 80 90" /></g><path d="M57 30 A 10 10 0 0 0 49 40" stroke="green" stroke-width="2.5" fill="none"/><path d="M57 70 A 10 10 0 0 0 65 60" stroke="green" stroke-width="2.5" fill="none"/></svg>` }
+        ];
+
+        let currentRotation = 0; 
+        let isSpinning = false;
+        let spinAngleStart = 0;
+        let spinTime = 0;
+        const spinTimeTotal = 5000;
+        const easeOutCubic = t => (--t) * t * t + 1;
+
+        const drawWheel = () => {
+            const numSegments = segments.length;
+            if (numSegments === 0) return;
+            const anglePerSegment = 2 * Math.PI / numSegments;
+            const radius = canvas.width / 2;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const angleOffset = -anglePerSegment / 2 - Math.PI / 2;
+            let rotation = currentRotation * Math.PI / 180;
+            if (isSpinning) {
+                const time = Date.now() - spinTime;
+                const spinProgress = Math.min(time / spinTimeTotal, 1);
+                const easedProgress = easeOutCubic(spinProgress);
+                const spinAngle = spinAngleStart * easedProgress;
+                rotation = (currentRotation + spinAngle) * Math.PI / 180;
+            }
+
+            segments.forEach((segment, i) => {
+                const startAngle = i * anglePerSegment + angleOffset + rotation;
+                const endAngle = (i + 1) * anglePerSegment + angleOffset + rotation;
+                ctx.beginPath();
+                ctx.moveTo(radius, radius);
+                ctx.arc(radius, radius, radius - 10, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fillStyle = segment.color;
+                ctx.fill();
+                if (numSegments > 1) {
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+                }
+
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 17px Poppins';
+                const midAngle = startAngle + anglePerSegment / 2;
+                const textRadius = radius * 0.68;
+                const textX = radius + textRadius * Math.cos(midAngle);
+                const textY = radius + textRadius * Math.sin(midAngle);
+                const words = segment.label.split('\n');
+                const lineHeight = 19;
+                const startY = textY - ((words.length - 1) * lineHeight) / 2;
+                for (let j = 0; j < words.length; j++) {
+                    ctx.fillText(words[j], textX, startY + (j * lineHeight));
+                }
+                ctx.restore();
+            });
+        };
+        
+        const animate = () => {
+            if (!isSpinning) return;
+            const time = Date.now() - spinTime;
+            if (time >= spinTimeTotal) {
+                isSpinning = false;
+                currentRotation = (currentRotation + spinAngleStart) % 360;
+                const numSegments = segments.length;
+                const anglePerSegment = 360 / numSegments;
+                const pointerAngle = (270 - currentRotation + 360) % 360;
+                const firstSegmentStartAngle = 270 - (anglePerSegment / 2);
+                const relativeAngle = (pointerAngle - firstSegmentStartAngle + 360) % 360;
+                const winningIndex = Math.floor(relativeAngle / anglePerSegment);
+                const winningSegment = segments[winningIndex];
+                showModal(winningSegment, winningIndex);
+                spinBtn.disabled = false;
+                return;
+            }
+            drawWheel();
+            requestAnimationFrame(animate);
+        }
+
+        const spin = () => {
+            if (isSpinning || segments.length === 0) return;
+            isSpinning = true;
+            spinBtn.disabled = true;
+            spinTime = Date.now();
+            spinAngleStart = Math.random() * 360 + 360 * 5; 
+            animate();
+        };
+        
+        const showModal = (segment, index) => {
+            modalTitle.textContent = segment.label.replace(/-\n/g, '').replace('\n', ' ');
+            modalContent.innerHTML = segment.content;
+            modalImage.innerHTML = segment.image;
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            closeModalBtn.onclick = () => {
+                hideModal(index);
+            };
+        };
+        
+        const hideModal = (indexToRemove) => {
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            segments.splice(indexToRemove, 1);
+            currentRotation = 0;
+            isSpinning = false;
+            if (segments.length > 0) {
+                drawWheel();
+                spinBtn.disabled = false;
+            } else {
+                gameContainer.classList.add('hidden');
+                completionMessage.classList.remove('hidden');
+            }
+        };
+
+        spinBtn.addEventListener('click', spin);
+        window.onload = () => {
+            drawWheel();
+        };
+
+    </script>
+</body>
+</html>
+
+a
